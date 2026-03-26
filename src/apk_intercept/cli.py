@@ -472,7 +472,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "analyze",
         help="Create a fresh per-APK analysis session, optionally seeding the APK into input/",
     )
-    ps.add_argument("--apk", metavar="PATH", help="Target APK to seed into the new session")
+    ps.add_argument("--apk", required=True, metavar="PATH", help="Target APK to seed into the new session")
     ps.add_argument("--engagement", default="analysis", metavar="NAME")
     ps.add_argument("--target", metavar="NAME", help="Target slug (defaults to --apk file stem)")
     ps.add_argument("--name", metavar="NAME", help="Optional session directory name")

@@ -43,6 +43,38 @@ For repeatable per-APK workflows, bootstrap a dedicated analysis session (auto-t
 apkit session analyze --apk E:\analysis\target.apk --engagement bugbounty
 ```
 
+Then run static/dynamic steps against the active session:
+
+```powershell
+apkit static --apk E:\analysis\target.apk --plan
+apkit dynamic --package com.target.app --profile observe
+```
+
+### Cloud workspace flow (Codex / remote Linux runners)
+
+If you're running in a cloud workspace, use this exact sequence per APK:
+
+```bash
+# 1) install deps once in the workspace
+python -m pip install -r requirements.txt
+
+# 2) create/activate an isolated session for this APK
+python -m apk_intercept.cli --workspace "$HOME/apkit-workspace" \
+  session analyze --apk /workspace/uploads/app.apk --engagement cloud
+
+# 3) run static analysis
+python -m apk_intercept.cli --workspace "$HOME/apkit-workspace" \
+  static --apk /workspace/uploads/app.apk --plan
+
+# 4) inspect active session paths/results
+python -m apk_intercept.cli --workspace "$HOME/apkit-workspace" session show
+```
+
+Notes for cloud workspaces:
+- Static analysis works cross-platform.
+- Dynamic instrumentation (`dynamic`, `native-session`, `repack`, trust tools, MCP server) requires Windows + PowerShell + ADB/Frida.
+- To keep uploads outside the repo, always pass `--workspace` to an external path (for example `$HOME/apkit-workspace`).
+
 Inspect the active session:
 
 ```powershell
