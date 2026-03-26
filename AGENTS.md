@@ -1,73 +1,73 @@
 # Frieza (APKit) — Codex Agent Instructions
 
-## Environment bootstrap
+## One-time setup (run once after cloning)
 
-Run this once at the start of every session before using any tool or command:
+From the repo root in PowerShell:
 
-```bash
-pip install -e ".[dev]" -q
+```powershell
+pip install -e ".[dev]"
 ```
 
 This installs all four packages (`apk_intercept`, `apk_static_lief`, `apk_intercept_mcp`,
-`trust_e2e`) and the `apkit` CLI entry point. The install is editable so source changes
-take effect immediately without reinstalling.
+`trust_e2e`) and the `apkit` CLI entry point. Editable install — source changes take
+effect immediately.
 
-## MCP server
+Verify with:
 
-Start the server with:
-
-```bash
-apkit mcp-server
+```powershell
+apkit --version
+apkit healthcheck
 ```
-
-The server speaks JSON-RPC 2.0 over stdio. It is safe to restart between tasks.
 
 ## Repeatable per-APK workflow
 
 Every APK analysis run must start by creating an isolated workspace session.
-Call the `bootstrap_analysis_session` MCP tool first, then run scans against it:
+Call `bootstrap_analysis_session` first, then scan:
 
-1. `bootstrap_analysis_session` — creates an isolated session, copies the APK into
-   `input/`, activates it, returns all artifact paths.
-2. `scan_static_apk` or `chat_analyze_apk` — runs LIEF static analysis; report lands
-   in the active session `static/` directory automatically.
-3. `recommend_dynamic_plan` — builds a dynamic execution plan from the report.
-4. `list_apks` — lists all APKs in the active session.
+1. `bootstrap_analysis_session` — creates a session, copies the APK into `input/`,
+   activates it, returns artifact paths.
+2. `scan_static_apk` or `chat_analyze_apk` — LIEF static analysis; report goes to
+   the active session `static/` directory.
+3. `recommend_dynamic_plan` — builds a dynamic execution plan from the static report.
+4. `start_hardened_session` or `start_native_intercept_session` — attach Frida
+   (requires device connected via ADB).
+5. `list_apks` — list everything in the active session.
 
-Always pass the `apk_path` returned from `bootstrap_analysis_session` (the path inside
-`input/`) to subsequent scan tools so the report is written into the correct session.
+Always use the `seed_apk` path returned by `bootstrap_analysis_session` (the copy
+inside `input/`) when calling scan tools, so reports land in the right session.
 
 ## Workspace layout
 
-Artifacts are written outside the repo to keep the source tree clean:
+Artifacts stay outside the repo:
 
-| Path | Contents |
-|------|----------|
-| `$APKIT_HOME/sessions/<engagement>/<target>/<session>/input/` | APK inputs |
-| `.../static/` | JSON analysis reports |
-| `.../generated-hooks/` | Frida hook bundles |
-| `.../repacked/` | Rebuilt APKs |
-| `.../trust/events.jsonl` | Trust evidence log |
+| Directory | Contents |
+|-----------|----------|
+| `%LOCALAPPDATA%\apk-intercept-kit\sessions\<engagement>\<target>\<session>\input\` | APK inputs |
+| `...\static\` | JSON analysis reports |
+| `...\generated-hooks\` | Frida hook bundles |
+| `...\repacked\` | Rebuilt APKs |
+| `...\trust\events.jsonl` | Trust evidence log |
 
-Override the root with `APKIT_HOME` or `--workspace`. Override the active session
+Override root with `APKIT_HOME` env var or `--workspace`. Override active session
 with `APKIT_SESSION` or `--session`.
 
-## Platform notes
+## Tool availability
 
-- Static analysis (`scan_static_apk`, `chat_analyze_apk`, `scan_decompiled_tree`,
-  `recommend_dynamic_plan`, `bootstrap_analysis_session`, `list_apks`,
-  `summarize_findings`) — works on Linux, macOS, Windows.
-- Dynamic analysis, repack, trust server/bridge — require Windows + PowerShell + ADB +
-  Frida. These tools will error on Linux; skip them in cloud/Codex runs.
+All tools work on Windows. The following require a connected ADB device and
+frida-server running on the device:
 
-## Running tests
+- `start_hardened_session`
+- `start_native_intercept_session`
+- `start_trust_server` / `start_trust_adb_bridge`
+- `patch_nsc_and_repack` (also needs apktool, zipalign, apksigner in PATH)
 
-```bash
+Static analysis tools (`scan_static_apk`, `chat_analyze_apk`, `scan_decompiled_tree`,
+`recommend_dynamic_plan`, `summarize_findings`, `bootstrap_analysis_session`,
+`list_apks`) work without a device.
+
+## Tests and linting
+
+```powershell
 pytest
-```
-
-## Linting
-
-```bash
 ruff check .
 ```

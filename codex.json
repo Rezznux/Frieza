@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "apk-intercept-kit": {
+      "command": "apkit",
+      "args": ["mcp-server"]
+    }
+  }
+}
