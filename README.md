@@ -37,6 +37,12 @@ Create a session and make it active:
 apkit session new --engagement bugbounty --target target-app
 ```
 
+For repeatable per-APK workflows, bootstrap a dedicated analysis session (auto-targeted from APK name and copied into `input/`):
+
+```powershell
+apkit session analyze --apk E:\analysis\target.apk --engagement bugbounty
+```
+
 Inspect the active session:
 
 ```powershell

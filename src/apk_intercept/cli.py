@@ -290,7 +290,13 @@ def cmd_mcp(_args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 
 def cmd_session(args: argparse.Namespace) -> int:
-    from apk_intercept.workspace import create_session, describe_session, migrate_repo_artifacts, set_active_session
+    from apk_intercept.workspace import (
+        bootstrap_analysis_session,
+        create_session,
+        describe_session,
+        migrate_repo_artifacts,
+        set_active_session,
+    )
 
     if args.session_command == "new":
         result = create_session(
@@ -301,6 +307,24 @@ def cmd_session(args: argparse.Namespace) -> int:
             name=args.name,
             activate=args.activate,
         )
+        print(json.dumps(result, indent=2, sort_keys=True))
+        return 0
+
+    if args.session_command == "analyze":
+        try:
+            result = bootstrap_analysis_session(
+                apk_path=args.apk,
+                workspace_root=args.workspace,
+                session_path=args.path,
+                engagement=args.engagement,
+                target=args.target,
+                name=args.name,
+                copy_apk=not args.reference_only,
+                activate=args.activate,
+            )
+        except ValueError as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 1
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0
 
@@ -442,6 +466,22 @@ def _build_parser() -> argparse.ArgumentParser:
     ps.add_argument("--target", default="general", metavar="NAME")
     ps.add_argument("--name", metavar="NAME", help="Optional session directory name")
     ps.add_argument("--path", metavar="DIR", help="Use an explicit session directory path")
+    ps.add_argument("--activate", action=argparse.BooleanOptionalAction, default=True)
+
+    ps = session_sub.add_parser(
+        "analyze",
+        help="Create a fresh per-APK analysis session, optionally seeding the APK into input/",
+    )
+    ps.add_argument("--apk", metavar="PATH", help="Target APK to seed into the new session")
+    ps.add_argument("--engagement", default="analysis", metavar="NAME")
+    ps.add_argument("--target", metavar="NAME", help="Target slug (defaults to --apk file stem)")
+    ps.add_argument("--name", metavar="NAME", help="Optional session directory name")
+    ps.add_argument("--path", metavar="DIR", help="Use an explicit session directory path")
+    ps.add_argument(
+        "--reference-only",
+        action="store_true",
+        help="Do not copy --apk into input/; keep only a reference in manifest metadata",
+    )
     ps.add_argument("--activate", action=argparse.BooleanOptionalAction, default=True)
 
     ps = session_sub.add_parser("show", help="Show the active or specified workspace session")

@@ -154,6 +154,70 @@ def create_session(
     }
 
 
+def bootstrap_analysis_session(
+    *,
+    apk_path: str | Path | None = None,
+    workspace_root: str | Path | None = None,
+    session_path: str | Path | None = None,
+    engagement: str = "analysis",
+    target: str | None = None,
+    name: str | None = None,
+    copy_apk: bool = True,
+    activate: bool = True,
+) -> Dict[str, Any]:
+    apk: Path | None = None
+    resolved_target = target
+    if apk_path:
+        apk = Path(apk_path).expanduser().resolve()
+        if not apk.exists():
+            raise FileNotFoundError(f"APK not found: {apk}")
+        if apk.suffix.lower() != ".apk":
+            raise ValueError(f"Expected an .apk file, got: {apk}")
+        if not resolved_target:
+            resolved_target = sanitize_component(apk.stem, "target")
+
+    if not resolved_target:
+        resolved_target = "general"
+
+    result = create_session(
+        workspace_root,
+        session_path=session_path,
+        engagement=engagement,
+        target=resolved_target,
+        name=name,
+        activate=activate,
+        metadata={"bootstrap_mode": "analysis"},
+    )
+
+    seeded_apk_path: Path | None = None
+    if apk:
+        destination = artifact_path(
+            "input",
+            apk.name,
+            workspace_root=result["workspace_root"],
+            session_path=result["session_path"],
+        )
+        if copy_apk:
+            shutil.copy2(apk, destination)
+            seeded_apk_path = destination
+        else:
+            seeded_apk_path = apk
+
+    write_manifest(
+        result["session_path"],
+        {
+            "analysis_seed_apk": str(seeded_apk_path) if seeded_apk_path else None,
+            "analysis_seed_mode": "copy" if (apk and copy_apk) else ("reference" if apk else None),
+        },
+    )
+
+    return {
+        **result,
+        "seed_apk": str(seeded_apk_path) if seeded_apk_path else None,
+        "seed_mode": "copy" if (apk and copy_apk) else ("reference" if apk else None),
+    }
+
+
 def resolve_session(
     workspace_root: str | Path | None = None,
     session_path: str | Path | None = None,
