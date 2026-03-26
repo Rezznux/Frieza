@@ -1,0 +1,2 @@
+# Core static analysis
+lief>=0.14

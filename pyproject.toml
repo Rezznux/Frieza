@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "apk-intercept-kit"
+version = "0.3.0"
+description = "Authorized Android APK static and dynamic analysis toolkit"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = [
+    "lief>=0.14",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "ruff>=0.4",
+]
+
+[project.scripts]
+apkit = "apk_intercept.cli:main"
+
+# Map each package to its src directory.
+# apk_intercept lives in the new top-level src/
+# The three sub-module packages stay in their existing locations.
+[tool.setuptools.packages]
+find = { where = [] }
+
+[tool.setuptools.package-dir]
+"apk_intercept"     = "src/apk_intercept"
+"apk_static_lief"   = "static-lief/src/apk_static_lief"
+"trust_e2e"         = "trust-e2e/src/trust_e2e"
+"apk_intercept_mcp" = "mcp-server/src/apk_intercept_mcp"
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

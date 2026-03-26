@@ -1,0 +1,7 @@
+[
+  { "name": "attest", "hooks": ["hooks/observe_attestation_only.js", "hooks/observe_attestation_cadence.js"] },
+  { "name": "observe", "hooks": ["hooks/observe_trust_flow.js"] },
+  { "name": "network", "hooks": ["hooks/observe_trust_flow.js", "hooks/android_unpinning.js"] },
+  { "name": "native", "hooks": ["hooks/native_runtime_baseline.js"] },
+  { "name": "hardened", "hooks": ["hooks/environment_cloak_basic.js", "hooks/anti_instrumentation_basic.js", "hooks/observe_trust_flow.js", "hooks/android_unpinning.js"] }
+]

@@ -1,0 +1,11 @@
+{
+  "overrides": [
+    {
+      "session_id": "sess-support-1",
+      "device_id": "device-01",
+      "reason": "manual_kyc_complete",
+      "approved_by": "fraud_ops",
+      "expires_at_epoch": 2524608000
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "attestation_signing_key": "attest_signing_shared_secret",
+  "devices": {
+    "device-01": {
+      "device_secret": "dev_secret_01",
+      "package_name": "com.target.app",
+      "app_cert_digest": "sha256:deadbeefcafe01"
+    }
+  }
+}
