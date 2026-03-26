@@ -1,2 +1,5 @@
-# Core static analysis
+# Install local package so `python -m apk_intercept.cli` resolves from this repo.
+-e .
+
+# Core static analysis dependency
 lief>=0.14
