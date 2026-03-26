@@ -374,6 +374,32 @@ TOOLS = [
         },
     },
     {
+        "name": "bootstrap_analysis_session",
+        "description": (
+            "Create an isolated per-APK workspace session and make it active. "
+            "Call this once per APK before running any scan or analysis tool. "
+            "Returns session paths so subsequent tools write artifacts to the right place."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "apk_path": {
+                    "type": "string",
+                    "description": "Absolute path to the APK file. The APK is copied into the session input/ folder.",
+                },
+                "engagement": {
+                    "type": "string",
+                    "description": "Engagement label used to organise sessions (default: 'analysis').",
+                },
+                "workspace": {
+                    "type": "string",
+                    "description": "Override workspace root. Defaults to APKIT_HOME or the platform data directory.",
+                },
+            },
+            "required": ["apk_path"],
+        },
+    },
+    {
         "name": "list_apks",
         "description": (
             "List all APK files available in the active workspace session input folder, grouped by app. "
@@ -427,6 +453,15 @@ TOOLS = [
 
 
 def _handle_tool_call(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+    if name == "bootstrap_analysis_session":
+        from apk_intercept.workspace import bootstrap_analysis_session
+
+        result = bootstrap_analysis_session(
+            apk_path=arguments["apk_path"],
+            workspace_root=arguments.get("workspace"),
+            engagement=arguments.get("engagement", "analysis"),
+        )
+        return _tool_text(result)
     if name == "scan_static_apk":
         return _tool_text(analyze_apk(arguments["apk_path"], arguments.get("output_path")))
     if name == "scan_decompiled_tree":

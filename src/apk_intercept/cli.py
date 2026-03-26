@@ -281,8 +281,9 @@ def cmd_healthcheck(_args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 
 def cmd_mcp(_args: argparse.Namespace) -> int:
-    _require_windows("mcp-server")
-    return _run_ps("start_mcp_server.ps1", [])
+    from apk_intercept_mcp.server import main as mcp_main
+
+    return mcp_main()
 
 
 # ---------------------------------------------------------------------------
