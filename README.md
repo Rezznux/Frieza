@@ -1,5 +1,7 @@
 ﻿# Frieza (APKit)
 
+![86gzqmd9ulbe1](https://github.com/user-attachments/assets/7269d78d-f35b-4749-b172-552dade72653)
+
 Android APK analysis toolkit built around a source-only repository plus an external per-engagement workspace.
 
 ## Source-Only Layout
