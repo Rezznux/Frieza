@@ -188,17 +188,6 @@ The PowerShell scripts still exist under `scripts/` for direct use, but the pref
 
 Direct scripts now honor the active workspace session where relevant.
 
-## Publish Cleanly
-
-Recommended sequence before publishing this project to GitHub:
-
-```powershell
-apkit session new --engagement cleanup --target apk-intercept-kit
-apkit session migrate
-```
-
-That leaves the repo as maintained source only and moves old casework into the workspace session.
-
 ## Notes
 
 - This toolkit is for authorized testing only.
