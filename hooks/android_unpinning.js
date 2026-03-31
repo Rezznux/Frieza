@@ -92,5 +92,69 @@ Java.perform(function () {
         log("TrustManagerImpl hook skipped: " + e);
     }
 
+    // Retrofit2 / OkHttp3 custom SSL socket factory bypass.
+    try {
+        var OkHttpClient = Java.use("okhttp3.OkHttpClient$Builder");
+        OkHttpClient.sslSocketFactory.overload(
+            "javax.net.ssl.SSLSocketFactory",
+            "javax.net.ssl.X509TrustManager"
+        ).implementation = function (sf, tm) {
+            log("OkHttpClient.Builder.sslSocketFactory() — replacing TrustManager");
+            var X509TrustManager2 = Java.use("javax.net.ssl.X509TrustManager");
+            var InsecureTM = Java.registerClass({
+                name: "org.codex.InsecureTrustManager2",
+                implements: [X509TrustManager2],
+                methods: {
+                    checkClientTrusted: function () {},
+                    checkServerTrusted: function () {},
+                    getAcceptedIssuers: function () { return []; }
+                }
+            });
+            return this.sslSocketFactory(sf, InsecureTM.$new());
+        };
+    } catch (e) {
+        log("OkHttpClient.Builder.sslSocketFactory hook skipped: " + e);
+    }
+
+    // Apache HTTP client (legacy apps using DefaultHttpClient / SchemeRegistry).
+    try {
+        var SSLSocketFactory = Java.use("org.apache.http.conn.ssl.SSLSocketFactory");
+        SSLSocketFactory.isSecure.implementation = function (socket) {
+            log("Apache SSLSocketFactory.isSecure() → true");
+            return true;
+        };
+    } catch (e) {
+        log("Apache SSLSocketFactory hook skipped: " + e);
+    }
+
+    // Android Volley (uses HurlStack backed by HttpsURLConnection — already covered above via SSLContext,
+    // but also patch the explicit verifier path used in some Volley builds).
+    try {
+        var HurlStack = Java.use("com.android.volley.toolbox.HurlStack");
+        var HostnameVerifier2 = Java.use("javax.net.ssl.HostnameVerifier");
+        var VolleyHNV = Java.registerClass({
+            name: "org.codex.VolleyInsecureHNV",
+            implements: [HostnameVerifier2],
+            methods: { verify: function () { return true; } }
+        });
+        HurlStack.$init.overload("com.android.volley.toolbox.HurlStack$UrlRewriter", "javax.net.ssl.SSLSocketFactory").implementation = function (rewriter, sf) {
+            log("HurlStack constructor patched — injecting permissive HostnameVerifier");
+            this.$init(rewriter, sf);
+            this.mSslSocketFactory.value = sf;
+        };
+    } catch (e) {
+        log("Volley HurlStack hook skipped: " + e);
+    }
+
+    // Conscrypt / BoringSSL direct peer certificate check (some hardened apps call this directly).
+    try {
+        var OpenSSLSocketImpl = Java.use("com.android.org.conscrypt.OpenSSLSocketImpl");
+        OpenSSLSocketImpl.verifyCertificateChain.implementation = function (certRefs, authMethod) {
+            log("OpenSSLSocketImpl.verifyCertificateChain() bypass");
+        };
+    } catch (e) {
+        log("OpenSSLSocketImpl hook skipped: " + e);
+    }
+
     log("Unpinning hooks installed");
 });

@@ -29,15 +29,22 @@ Java.perform(function () {
             "/system/bin/su",
             "/system/xbin/su",
             "/sbin/su",
+            "/data/local/bin/su",
+            "/data/local/xbin/su",
             "/system/app/Superuser.apk",
-            "/system/bin/magisk"
+            "/system/app/SuperSU.apk",
+            "/system/bin/magisk",
+            "/sbin/.magisk",
+            "/data/adb/magisk",
+            "/data/adb/modules",
+            "/proc/net/if_inet6",  // sometimes probed to detect emulator
         ];
         var fileExists = File.exists.overload();
         fileExists.implementation = function () {
             var path = this.getAbsolutePath();
             for (var i = 0; i < suspicious.length; i++) {
                 if (path === suspicious[i]) {
-                    log("Hiding root artifact path " + path);
+                    log("Hiding root artifact: " + path);
                     return false;
                 }
             }
@@ -46,5 +53,35 @@ Java.perform(function () {
         log("File.exists root artifact filter enabled");
     } catch (e) {
         log("File.exists hook skipped: " + e);
+    }
+
+    // Spoof SystemProperties used by emulator/root detection.
+    try {
+        var SystemProperties = Java.use("android.os.SystemProperties");
+        var SPOOF_PROPS = {
+            "ro.debuggable": "0",
+            "ro.secure": "1",
+            "ro.build.tags": "release-keys",
+            "ro.build.type": "user",
+        };
+        var getPropStr = SystemProperties.get.overload("java.lang.String");
+        getPropStr.implementation = function (key) {
+            if (SPOOF_PROPS[key] !== undefined) {
+                log("Spoofing SystemProperties.get(" + key + ")");
+                return SPOOF_PROPS[key];
+            }
+            return getPropStr.call(this, key);
+        };
+        var getPropDefault = SystemProperties.get.overload("java.lang.String", "java.lang.String");
+        getPropDefault.implementation = function (key, def) {
+            if (SPOOF_PROPS[key] !== undefined) {
+                log("Spoofing SystemProperties.get(" + key + ", def)");
+                return SPOOF_PROPS[key];
+            }
+            return getPropDefault.call(this, key, def);
+        };
+        log("SystemProperties ro.debuggable/ro.secure/ro.build.tags/type spoofed");
+    } catch (e) {
+        log("SystemProperties hook skipped: " + e);
     }
 });

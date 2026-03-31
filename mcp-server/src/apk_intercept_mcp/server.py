@@ -5,7 +5,13 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from apk_intercept.workspace import describe_session, trust_log_path
-from apk_static_lief.scanner import analyze_apk, analyze_source_tree, build_execution_plan, load_report
+from apk_static_lief.scanner import (
+    analyze_apk,
+    analyze_apk_full,
+    analyze_source_tree,
+    build_execution_plan,
+    load_report,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -139,6 +145,83 @@ def _format_report_as_markdown(report: Dict[str, Any]) -> str:
             f"- Files: **{len(dex_files)}**  |  Classes: **{total_classes:,}**  |  Methods: **{total_methods:,}**",
             "",
         ]
+
+    manifest = report.get("manifest", {})
+    if manifest and not manifest.get("error"):
+        lines += ["### Manifest", ""]
+        if manifest.get("package_name"):
+            lines.append(f"- **Package:** `{manifest['package_name']}`")
+        if manifest.get("version_name"):
+            lines.append(f"- **Version:** {manifest['version_name']} (code {manifest.get('version_code', '?')})")
+        if manifest.get("min_sdk") is not None:
+            lines.append(f"- **SDK:** min={manifest['min_sdk']}  target={manifest.get('target_sdk', '?')}")
+        lines.append(f"- **Permissions:** {manifest.get('permission_count', 0)} total")
+        dangerous = manifest.get("dangerous_permissions", [])
+        if dangerous:
+            lines.append(f"- **Dangerous ({len(dangerous)}):** " + ", ".join(f"`{p.split('.')[-1]}`" for p in dangerous[:8]))
+            if len(dangerous) > 8:
+                lines.append(f"  - ...and {len(dangerous) - 8} more")
+        high_risk = manifest.get("high_risk_permissions", [])
+        if high_risk:
+            lines.append(f"- **High-risk ({len(high_risk)}):** " + ", ".join(f"`{p.split('.')[-1]}`" for p in high_risk))
+        lines.append("")
+
+    certs = report.get("certificates", {})
+    if certs and not certs.get("error"):
+        lines += ["### Signing Certificate", ""]
+        if certs.get("is_debug_signed"):
+            lines.append("- **WARNING: debug-signed APK** (not suitable for production release)")
+        for cert in certs.get("certificates", [])[:2]:
+            if cert.get("subject"):
+                lines.append(f"- **Subject:** `{cert['subject']}`")
+            if cert.get("issuer") and cert.get("issuer") != cert.get("subject"):
+                lines.append(f"- **Issuer:** `{cert['issuer']}`")
+            if cert.get("sha256_fingerprint"):
+                lines.append(f"- **SHA-256:** `{cert['sha256_fingerprint']}`")
+            if cert.get("validity"):
+                lines.append(f"- **Validity:** {cert['validity']}")
+            if cert.get("signature_algorithm"):
+                lines.append(f"- **Algorithm:** {cert['signature_algorithm']}")
+        lines.append("")
+
+    obfuscation = report.get("obfuscation", {})
+    if obfuscation and not obfuscation.get("error"):
+        score = obfuscation.get("score", 0)
+        label = "likely obfuscated" if obfuscation.get("likely_obfuscated") else "minimal obfuscation"
+        lines += ["### Obfuscation", ""]
+        lines.append(f"- **Score:** {score}/100 — {label}")
+        for indicator in obfuscation.get("indicators", []):
+            lines.append(f"  - {indicator}")
+        lines.append("")
+
+    vulns = report.get("vulnerabilities", {})
+    if vulns:
+        lines += ["### Vulnerability Scan (semgrep)", ""]
+        if not vulns.get("ok"):
+            lines.append(f"- _Scan not available: {vulns.get('error', 'unknown error')}_")
+        else:
+            count = vulns.get("finding_count", 0)
+            lines.append(f"- **{count} finding{'s' if count != 1 else ''}** from semgrep")
+            by_severity: Dict[str, List[Any]] = {}
+            for f in vulns.get("findings", []):
+                by_severity.setdefault(f["severity"], []).append(f)
+            for sev in ("ERROR", "WARNING", "INFO"):
+                grp = by_severity.get(sev, [])
+                if not grp:
+                    continue
+                lines.append(f"\n**{sev}** ({len(grp)})")
+                for finding in grp[:5]:
+                    lines.append(f"  - `{finding['rule_id']}` — {finding['file']}:{finding['line']}")
+                    if finding.get("message"):
+                        lines.append(f"    {finding['message'][:120]}")
+                if len(grp) > 5:
+                    lines.append(f"  - ...and {len(grp) - 5} more")
+        lines.append("")
+
+    decompilation = report.get("decompilation", {})
+    if decompilation:
+        status = "succeeded" if decompilation.get("ok") else f"failed ({decompilation.get('error', '?')})"
+        lines += [f"_Decompilation ({decompilation.get('tool', 'jadx')}): {status}_", ""]
 
     if endpoints:
         lines += ["### Discovered Endpoints", ""]
@@ -449,6 +532,37 @@ TOOLS = [
             "required": ["apk_path"],
         },
     },
+    {
+        "name": "scan_full_apk",
+        "description": (
+            "Run the complete analysis pipeline on an APK: LIEF binary scan, manifest/permission analysis, "
+            "certificate inspection, obfuscation scoring, optional JADX decompilation, and optional semgrep "
+            "vulnerability scan. Returns a rich JSON report and human-readable markdown summary. "
+            "Requires jadx in PATH for decompilation; requires semgrep for vulnerability scan."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "apk_path": {
+                    "type": "string",
+                    "description": "Absolute path to the APK file.",
+                },
+                "output_path": {
+                    "type": "string",
+                    "description": "Optional path for the JSON report.",
+                },
+                "decompile": {
+                    "type": "boolean",
+                    "description": "Decompile with JADX and merge Java source findings (default: true).",
+                },
+                "vulnscan": {
+                    "type": "boolean",
+                    "description": "Run semgrep vulnerability scan on decompiled source (default: true).",
+                },
+            },
+            "required": ["apk_path"],
+        },
+    },
 ]
 
 
@@ -589,6 +703,14 @@ def _handle_tool_call(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         return _tool_markdown(_format_report_as_markdown(report))
     if name == "chat_analyze_apk":
         report = analyze_apk(arguments["apk_path"], arguments.get("output_path"))
+        return _tool_markdown(_format_report_as_markdown(report))
+    if name == "scan_full_apk":
+        report = analyze_apk_full(
+            arguments["apk_path"],
+            arguments.get("output_path"),
+            decompile=arguments.get("decompile", True),
+            vulnscan=arguments.get("vulnscan", True),
+        )
         return _tool_markdown(_format_report_as_markdown(report))
     raise ValueError(f"Unknown tool: {name}")
 

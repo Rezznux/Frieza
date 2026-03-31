@@ -64,9 +64,23 @@ def _configure_workspace_environment(args: argparse.Namespace) -> None:
 # ---------------------------------------------------------------------------
 
 def cmd_static(args: argparse.Namespace) -> int:
-    from apk_static_lief.scanner import analyze_apk, analyze_source_tree, build_execution_plan
+    from apk_static_lief.scanner import (
+        analyze_apk,
+        analyze_apk_full,
+        analyze_source_tree,
+        build_execution_plan,
+    )
 
-    if args.apk:
+    use_full = args.apk and (getattr(args, "decompile", False) or getattr(args, "vulnscan", False))
+
+    if use_full:
+        result = analyze_apk_full(
+            args.apk,
+            args.output,
+            decompile=getattr(args, "decompile", False),
+            vulnscan=getattr(args, "vulnscan", False),
+        )
+    elif args.apk:
         result = analyze_apk(args.apk, args.output)
     else:
         result = analyze_source_tree(args.source_dir, args.output)
@@ -78,6 +92,29 @@ def cmd_static(args: argparse.Namespace) -> int:
         "dynamic_plan": result["dynamic_plan"],
         "inventory": result["inventory"],
     }
+    if result.get("manifest"):
+        summary["manifest"] = {
+            "package_name": result["manifest"].get("package_name"),
+            "version_name": result["manifest"].get("version_name"),
+            "permission_count": result["manifest"].get("permission_count", 0),
+            "dangerous_permissions": result["manifest"].get("dangerous_permissions", []),
+        }
+    if result.get("obfuscation"):
+        summary["obfuscation"] = result["obfuscation"]
+    if result.get("certificates"):
+        summary["certificates"] = {
+            "count": len(result["certificates"].get("certificates", [])),
+            "is_debug_signed": result["certificates"].get("is_debug_signed"),
+        }
+    if result.get("decompilation"):
+        summary["decompilation"] = result["decompilation"]
+    if result.get("vulnerabilities"):
+        vuln = result["vulnerabilities"]
+        summary["vulnerabilities"] = {
+            "ok": vuln.get("ok"),
+            "finding_count": vuln.get("finding_count", 0),
+            "error": vuln.get("error"),
+        }
     print(json.dumps(summary, indent=2, sort_keys=True))
 
     if args.plan:
@@ -250,30 +287,59 @@ def cmd_trust_demo(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 
 def cmd_healthcheck(_args: argparse.Namespace) -> int:
-    required = ["adb", "frida", "mitmproxy"]
-    optional = ["apktool", "zipalign", "apksigner", "keytool", "frida-ps"]
+    always_needed = [
+        ("lief", "pip install lief"),
+    ]
+    static_tools = [
+        ("jadx", "https://github.com/skylot/jadx/releases  (JADX decompiler)"),
+        ("semgrep", "pip install semgrep  (vulnerability scanner)"),
+        ("aapt2", "Android SDK build-tools  (manifest/permission analysis)"),
+        ("aapt", "Android SDK build-tools  (manifest/permission analysis — fallback)"),
+        ("keytool", "JDK  (certificate inspection)"),
+    ]
+    dynamic_tools = [
+        ("adb", "Android SDK platform-tools"),
+        ("frida", "pip install frida-tools"),
+        ("frida-ps", "pip install frida-tools"),
+        ("mitmproxy", "pip install mitmproxy"),
+    ]
+    repack_tools = [
+        ("apktool", "https://apktool.org"),
+        ("zipalign", "Android SDK build-tools"),
+        ("apksigner", "Android SDK build-tools"),
+    ]
 
-    ok = True
-    print("[*] Required tools:")
-    for tool in required:
+    all_ok = True
+
+    print("[*] Core Python dependencies:")
+    for tool, hint in always_needed:
+        try:
+            __import__(tool)
+            print(f"  [+] {tool}")
+        except ImportError:
+            print(f"  [-] {tool}  →  {hint}")
+            all_ok = False
+
+    print("\n[*] Static analysis tools (all platforms):")
+    for tool, hint in static_tools:
         found = _require_tool(tool)
-        status = "[+]" if found else "[-]"
-        print(f"  {status} {tool}")
-        if not found:
-            ok = False
+        print(f"  {'[+]' if found else '[ ]'} {tool}{'  →  ' + hint if not found else ''}")
 
-    print("[*] Optional tools (repack / frida-ps):")
-    for tool in optional:
+    print("\n[*] Dynamic instrumentation tools (Windows + ADB device required):")
+    for tool, hint in dynamic_tools:
         found = _require_tool(tool)
-        status = "[+]" if found else "[ ]"
-        print(f"  {status} {tool}")
+        print(f"  {'[+]' if found else '[ ]'} {tool}{'  →  ' + hint if not found else ''}")
 
-    if sys.platform == "win32":
-        print("[*] Platform: Windows - all modes available")
-    else:
-        print(f"[*] Platform: {sys.platform} - static analysis only (dynamic/repack require Windows)")
+    print("\n[*] Repackaging tools (Windows only):")
+    for tool, hint in repack_tools:
+        found = _require_tool(tool)
+        print(f"  {'[+]' if found else '[ ]'} {tool}{'  →  ' + hint if not found else ''}")
 
-    return 0 if ok else 1
+    platform_note = "Windows — all modes available" if sys.platform == "win32" \
+        else f"{sys.platform} — static analysis + MCP server available (dynamic/repack require Windows)"
+    print(f"\n[*] Platform: {platform_note}")
+
+    return 0 if all_ok else 1
 
 
 # ---------------------------------------------------------------------------
@@ -281,6 +347,7 @@ def cmd_healthcheck(_args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 
 def cmd_mcp(_args: argparse.Namespace) -> int:
+    # MCP server runs cross-platform (no ADB/Frida required for the server itself)
     from apk_intercept_mcp.server import main as mcp_main
 
     return mcp_main()
@@ -390,6 +457,16 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--plan", action="store_true", help="Print full execution plan after scan")
     p.add_argument("--package", metavar="NAME", help="Package name, used in plan output")
     p.add_argument("--device", metavar="SERIAL", help="Device serial, used in plan output")
+    p.add_argument(
+        "--decompile",
+        action="store_true",
+        help="Decompile APK with JADX and merge Java source findings (requires jadx in PATH)",
+    )
+    p.add_argument(
+        "--vulnscan",
+        action="store_true",
+        help="Run semgrep vulnerability scan on decompiled source (implies --decompile; requires semgrep)",
+    )
 
     p = sub.add_parser(
         "dynamic",

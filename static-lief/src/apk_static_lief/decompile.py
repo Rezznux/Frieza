@@ -1,0 +1,57 @@
+import shutil
+import subprocess
+from typing import Any, Dict
+
+
+def jadx_available() -> bool:
+    return shutil.which("jadx") is not None
+
+
+def apktool_available() -> bool:
+    return shutil.which("apktool") is not None
+
+
+def run_jadx(apk_path: str, output_dir: str, timeout: int = 180) -> Dict[str, Any]:
+    """Decompile APK to Java source using JADX."""
+    result: Dict[str, Any] = {"tool": "jadx", "ok": False, "output_dir": output_dir, "error": None}
+    if not jadx_available():
+        result["error"] = "jadx not found in PATH — install from https://github.com/skylot/jadx/releases"
+        return result
+    try:
+        proc = subprocess.run(
+            ["jadx", "--output-dir", output_dir, apk_path],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        result["ok"] = proc.returncode == 0
+        if not result["ok"]:
+            result["error"] = (proc.stderr or proc.stdout)[:500]
+    except subprocess.TimeoutExpired:
+        result["error"] = f"jadx timed out after {timeout}s"
+    except Exception as exc:
+        result["error"] = str(exc)
+    return result
+
+
+def run_apktool_decode(apk_path: str, output_dir: str, timeout: int = 120) -> Dict[str, Any]:
+    """Decode APK to smali/resources using apktool."""
+    result: Dict[str, Any] = {"tool": "apktool", "ok": False, "output_dir": output_dir, "error": None}
+    if not apktool_available():
+        result["error"] = "apktool not found in PATH — install from https://apktool.org"
+        return result
+    try:
+        proc = subprocess.run(
+            ["apktool", "d", "--force", "--output", output_dir, apk_path],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        result["ok"] = proc.returncode == 0
+        if not result["ok"]:
+            result["error"] = (proc.stderr or proc.stdout)[:500]
+    except subprocess.TimeoutExpired:
+        result["error"] = f"apktool timed out after {timeout}s"
+    except Exception as exc:
+        result["error"] = str(exc)
+    return result

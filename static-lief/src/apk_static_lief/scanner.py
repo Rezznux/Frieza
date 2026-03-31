@@ -9,6 +9,9 @@ from typing import Any, Dict, List, Tuple
 
 import lief
 from apk_intercept.workspace import artifact_path
+from apk_static_lief.certinfo import analyze_certificates
+from apk_static_lief.manifest import analyze_manifest
+from apk_static_lief.obfuscation import analyze_obfuscation
 
 TEXT_EXTENSIONS = {
     ".xml",
@@ -463,6 +466,9 @@ def _new_summary(kind: str, target: str) -> Dict[str, Any]:
         "target": target,
         "tooling": {"lief_version": getattr(lief, "__version__", "unknown")},
         "inventory": {},
+        "manifest": {},
+        "certificates": {},
+        "obfuscation": {},
         "findings": {key: [] for key in PATTERNS},
         "endpoints": [],
         "native_libraries": [],
@@ -528,6 +534,24 @@ def analyze_apk(apk_path: str, output_path: str | None = None) -> Dict[str, Any]
                         summary["art_files"].append(artifact_summary)
 
     summary["endpoints"] = sorted(endpoints)
+
+    # Manifest, certificates, and obfuscation (best-effort — never fatal)
+    try:
+        summary["manifest"] = analyze_manifest(str(apk))
+    except Exception as exc:  # noqa: BLE001
+        summary["manifest"] = {"error": str(exc)}
+    try:
+        summary["certificates"] = analyze_certificates(str(apk))
+    except Exception as exc:  # noqa: BLE001
+        summary["certificates"] = {"error": str(exc)}
+    try:
+        all_class_names = [
+            cls for dex in summary["dex_files"] if dex.get("parsed") for cls in dex.get("sample_classes", [])
+        ]
+        summary["obfuscation"] = analyze_obfuscation(all_class_names)
+    except Exception as exc:  # noqa: BLE001
+        summary["obfuscation"] = {"error": str(exc)}
+
     summary["dynamic_plan"] = _recommend_dynamic_plan(summary)
     report_path = _ensure_report_path(apk.stem, output_path)
     summary["report_path"] = str(report_path)
@@ -587,5 +611,82 @@ def analyze_source_tree(source_dir: str, output_path: str | None = None) -> Dict
     summary["dynamic_plan"] = _recommend_dynamic_plan(summary)
     report_path = _ensure_report_path(root.name, output_path)
     summary["report_path"] = str(report_path)
+    report_path.write_text(json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8")
+    return summary
+
+
+def analyze_apk_full(
+    apk_path: str,
+    output_path: str | None = None,
+    decompile: bool = True,
+    vulnscan: bool = True,
+) -> Dict[str, Any]:
+    """Full analysis: binary scan + optional JADX decompile + optional semgrep vuln scan.
+
+    Falls back gracefully if jadx or semgrep are not installed.
+    """
+    from apk_static_lief.decompile import jadx_available, run_jadx
+    from apk_static_lief.vulnscan import run_semgrep, semgrep_available
+
+    summary = analyze_apk(apk_path, output_path)
+
+    with tempfile.TemporaryDirectory(prefix="apk-decompile-") as decomp_dir:
+        # ------------------------------------------------------------------ #
+        # Decompile
+        # ------------------------------------------------------------------ #
+        if decompile:
+            decomp_result = (
+                run_jadx(apk_path, decomp_dir)
+                if jadx_available()
+                else {"tool": "jadx", "ok": False, "error": "jadx not installed — see https://github.com/skylot/jadx/releases"}
+            )
+
+            if decomp_result["ok"]:
+                java_summary = analyze_source_tree(decomp_dir)
+                # Union pattern findings (avoid duplicate previews)
+                for category, matches in java_summary["findings"].items():
+                    seen_previews = {m["preview"] for m in summary["findings"].get(category, [])}
+                    for m in matches:
+                        if m["preview"] not in seen_previews:
+                            summary["findings"].setdefault(category, []).append(m)
+                            seen_previews.add(m["preview"])
+                # Union endpoints
+                summary["endpoints"] = sorted(set(summary["endpoints"]) | set(java_summary["endpoints"]))
+
+            summary["decompilation"] = {
+                "tool": decomp_result["tool"],
+                "ok": decomp_result["ok"],
+                "error": decomp_result.get("error"),
+            }
+
+        # ------------------------------------------------------------------ #
+        # Vulnerability scan (requires decompiled source)
+        # ------------------------------------------------------------------ #
+        if vulnscan:
+            decompile_ok = summary.get("decompilation", {}).get("ok", False)
+            if decompile_ok:
+                vuln_result = (
+                    run_semgrep(decomp_dir)
+                    if semgrep_available()
+                    else {
+                        "tool": "semgrep",
+                        "ok": False,
+                        "findings": [],
+                        "finding_count": 0,
+                        "error": "semgrep not installed — run: pip install semgrep",
+                    }
+                )
+            else:
+                vuln_result = {
+                    "tool": "semgrep",
+                    "ok": False,
+                    "findings": [],
+                    "finding_count": 0,
+                    "error": "skipped — decompilation unavailable or failed",
+                }
+            summary["vulnerabilities"] = vuln_result
+
+    # Re-write report now that decompilation + vuln keys are present
+    report_path = Path(summary["report_path"])
     report_path.write_text(json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8")
     return summary
