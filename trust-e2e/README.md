@@ -23,7 +23,7 @@ It is designed to validate and stress-test:
 - `src/trust_e2e/engine.py`: policy-driven trust engine
 - `src/trust_e2e/simulator.py`: end-to-end scenario runner
 - `policy/policy.json`: tunable trust policy
-- `data/device_registry.json`: registered package/device secrets
+- `data/device_registry.example.json`: demo device/secret registry (copy to `device_registry.json` to customize; the copy is gitignored)
 - `data/overrides.json`: time-limited support exceptions
 
 ## Run

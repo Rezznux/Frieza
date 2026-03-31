@@ -12,8 +12,8 @@ DEVICE_ID = "device-01"
 SESSION_ID = "sess-001"
 ACTOR = "acct-A"
 RESOURCE = "acct-A"
-DEVICE_SECRET = "dev_secret_01"
-ATTEST_KEY = "attest_signing_shared_secret"
+DEVICE_SECRET = "dev_secret_01"           # demo value — matches device_registry.example.json
+ATTEST_KEY = "attest_signing_shared_secret"  # demo value — matches device_registry.example.json
 PACKAGE = "com.target.app"
 APP_CERT = "sha256:deadbeefcafe01"
 
