@@ -1,0 +1,24 @@
+# Local device registry overrides (copy device_registry.example.json to customize)
+trust-e2e/data/device_registry.json
+
+# Environment variable files
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+
+# APK files and analysis artifacts
+*.apk
+*.dex
+*.aar
+
+# IDE
+.idea/
+.vscode/
