@@ -19,8 +19,8 @@ Each scan produces:
 ## Run
 
 ```powershell
-apkit static --apk E:\analysis\target.apk
-apkit static --source-dir E:\analysis\apktool_out
+frieza static --apk E:\analysis\target.apk
+frieza static --source-dir E:\analysis\apktool_out
 ```
 
 By default, reports are written to the active session `static/` directory.

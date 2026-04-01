@@ -29,9 +29,9 @@ It is designed to validate and stress-test:
 ## Run
 
 ```powershell
-apkit trust-server
-apkit trust-bridge
-apkit trust-demo
+frieza trust-server
+frieza trust-bridge
+frieza trust-demo
 ```
 
 The legacy PowerShell entrypoints in `scripts/` still work and now write evidence into the active workspace session.

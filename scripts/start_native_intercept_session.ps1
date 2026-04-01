@@ -16,10 +16,10 @@ $hooksDir = Get-ApkitSessionDir -Kind "generated-hooks" -WorkspaceRoot $Workspac
 $hookOutput = Join-Path $hooksDir "$($PackageName -replace '[^A-Za-z0-9._-]', '_')-native-hooks.js"
 
 if ($WorkspaceRoot) {
-    $env:APKIT_HOME = Get-ApkitWorkspaceRoot -WorkspaceRoot $WorkspaceRoot
+    $env:FRIEZA_HOME = Get-ApkitWorkspaceRoot -WorkspaceRoot $WorkspaceRoot
 }
 if ($SessionPath) {
-    $env:APKIT_SESSION = Resolve-ApkitSessionPath -WorkspaceRoot $WorkspaceRoot -SessionPath $SessionPath
+    $env:FRIEZA_SESSION = Resolve-ApkitSessionPath -WorkspaceRoot $WorkspaceRoot -SessionPath $SessionPath
 }
 
 function Start-PackageNormally {

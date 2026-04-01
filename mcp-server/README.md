@@ -31,7 +31,7 @@ Resources are session-scoped now:
 ## Run
 
 ```powershell
-apkit mcp-server
+frieza mcp-server
 ```
 
 ## Expected Flow

@@ -3,12 +3,12 @@ function Get-ApkitWorkspaceRoot {
 
     if ($WorkspaceRoot) {
         $root = $WorkspaceRoot
-    } elseif ($env:APKIT_HOME) {
-        $root = $env:APKIT_HOME
+    } elseif ($env:FRIEZA_HOME) {
+        $root = $env:FRIEZA_HOME
     } elseif ($env:LOCALAPPDATA) {
-        $root = Join-Path $env:LOCALAPPDATA "apk-intercept-kit"
+        $root = Join-Path $env:LOCALAPPDATA "frieza"
     } else {
-        $root = Join-Path $HOME ".apkit"
+        $root = Join-Path $HOME ".frieza"
     }
 
     $resolved = [System.IO.Path]::GetFullPath($root)
@@ -48,8 +48,8 @@ function Resolve-ApkitSessionPath {
     if ($SessionPath) {
         return (Initialize-ApkitSessionLayout -SessionPath $SessionPath)
     }
-    if ($env:APKIT_SESSION) {
-        return (Initialize-ApkitSessionLayout -SessionPath $env:APKIT_SESSION)
+    if ($env:FRIEZA_SESSION) {
+        return (Initialize-ApkitSessionLayout -SessionPath $env:FRIEZA_SESSION)
     }
 
     $workspace = Get-ApkitWorkspaceRoot -WorkspaceRoot $WorkspaceRoot
@@ -89,8 +89,8 @@ function Get-ApkitTrustLogPath {
         [string]$SessionPath
     )
 
-    if ($env:APKIT_TRUST_LOG) {
-        $path = [System.IO.Path]::GetFullPath($env:APKIT_TRUST_LOG)
+    if ($env:FRIEZA_TRUST_LOG) {
+        $path = [System.IO.Path]::GetFullPath($env:FRIEZA_TRUST_LOG)
         New-Item -ItemType Directory -Force -Path (Split-Path -Parent $path) | Out-Null
         return $path
     }

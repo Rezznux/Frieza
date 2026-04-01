@@ -11,7 +11,7 @@ $coreSrc = Join-Path $repoRoot "src"
 $srcPath = Join-Path $repoRoot "trust-e2e\src"
 $env:PYTHONPATH = "$coreSrc;$srcPath"
 $env:TRUST_E2E_BASE_URL = "http://127.0.0.1:$Port"
-$env:APKIT_TRUST_LOG = Get-ApkitTrustLogPath -WorkspaceRoot $WorkspaceRoot -SessionPath $SessionPath
+$env:FRIEZA_TRUST_LOG = Get-ApkitTrustLogPath -WorkspaceRoot $WorkspaceRoot -SessionPath $SessionPath
 
 $serverCmd = "from trust_e2e.server import run; run(host='127.0.0.1', port=$Port)"
 $server = Start-Process -FilePath python -ArgumentList "-c", $serverCmd -PassThru -WindowStyle Hidden
@@ -38,7 +38,7 @@ try {
     Write-Host "Running trust-e2e simulator against port $Port..."
     python -m trust_e2e.simulator
     Write-Host ""
-    Write-Host "Evidence log: $env:APKIT_TRUST_LOG"
+    Write-Host "Evidence log: $env:FRIEZA_TRUST_LOG"
 }
 finally {
     if ($server -and !$server.HasExited) {

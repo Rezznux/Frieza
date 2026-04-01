@@ -20,7 +20,7 @@ dev = [
 ]
 
 [project.scripts]
-apkit = "apk_intercept.cli:main"
+frieza = "apk_intercept.cli:main"
 
 # Map each package to its src directory.
 # apk_intercept lives in the new top-level src/

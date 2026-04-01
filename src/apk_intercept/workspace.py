@@ -11,9 +11,9 @@ from pathlib import Path
 from typing import Any, Dict
 
 
-WORKSPACE_ENV = "APKIT_HOME"
-SESSION_ENV = "APKIT_SESSION"
-TRUST_LOG_ENV = "APKIT_TRUST_LOG"
+WORKSPACE_ENV = "FRIEZA_HOME"
+SESSION_ENV = "FRIEZA_SESSION"
+TRUST_LOG_ENV = "FRIEZA_TRUST_LOG"
 ACTIVE_SESSION_FILE = Path("state") / "active_session.txt"
 SESSION_DIR_NAMES = {
     "input": "input",
@@ -41,11 +41,11 @@ def sanitize_component(value: str | None, fallback: str) -> str:
 def default_workspace_root() -> Path:
     if os.name == "nt":
         base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
-        return base / "apk-intercept-kit"
+        return base / "frieza"
     xdg = os.environ.get("XDG_DATA_HOME")
     if xdg:
-        return Path(xdg) / "apk-intercept-kit"
-    return Path.home() / ".local" / "share" / "apk-intercept-kit"
+        return Path(xdg) / "frieza"
+    return Path.home() / ".local" / "share" / "frieza"
 
 
 def resolve_workspace_root(override: str | Path | None = None) -> Path:

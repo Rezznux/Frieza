@@ -9,14 +9,14 @@ pip install -e ".[dev]"
 ```
 
 This installs all four packages (`apk_intercept`, `apk_static_lief`, `apk_intercept_mcp`,
-`trust_e2e`) and the `apkit` CLI entry point. Editable install — source changes take
+`trust_e2e`) and the `frieza` CLI entry point. Editable install — source changes take
 effect immediately.
 
 Verify with:
 
 ```powershell
-apkit --version
-apkit healthcheck
+frieza --version
+frieza healthcheck
 ```
 
 ## Repeatable per-APK workflow
@@ -42,14 +42,14 @@ Artifacts stay outside the repo:
 
 | Directory | Contents |
 |-----------|----------|
-| `%LOCALAPPDATA%\apk-intercept-kit\sessions\<engagement>\<target>\<session>\input\` | APK inputs |
+| `%LOCALAPPDATA%\frieza\sessions\<engagement>\<target>\<session>\input\` | APK inputs |
 | `...\static\` | JSON analysis reports |
 | `...\generated-hooks\` | Frida hook bundles |
 | `...\repacked\` | Rebuilt APKs |
 | `...\trust\events.jsonl` | Trust evidence log |
 
-Override root with `APKIT_HOME` env var or `--workspace`. Override active session
-with `APKIT_SESSION` or `--session`.
+Override root with `FRIEZA_HOME` env var or `--workspace`. Override active session
+with `FRIEZA_SESSION` or `--session`.
 
 ## Tool availability
 

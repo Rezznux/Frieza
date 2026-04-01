@@ -476,7 +476,7 @@ TOOLS = [
                 },
                 "workspace": {
                     "type": "string",
-                    "description": "Override workspace root. Defaults to APKIT_HOME or the platform data directory.",
+                    "description": "Override workspace root. Defaults to FRIEZA_HOME or the platform data directory.",
                 },
             },
             "required": ["apk_path"],
@@ -728,7 +728,7 @@ def main() -> int:
             if method == "initialize":
                 response = {
                     "protocolVersion": "2024-11-05",
-                    "serverInfo": {"name": "apk-intercept-kit-mcp", "version": "0.2.0"},
+                    "serverInfo": {"name": "frieza-mcp", "version": "0.2.0"},
                     "capabilities": {"tools": {}, "resources": {}},
                 }
                 _write_message(_json_result(response, request_id))
