@@ -166,18 +166,19 @@ if (-not $PackageName) {
 }
 
 if ($EnableMitmProxy) {
-    $mitmArgs = @("-ProxyHost", $ProxyHost, "-ProxyPort", "$ProxyPort")
-    if ($DeviceId) { $mitmArgs += @("-DeviceId", $DeviceId) }
-    & $mitmScript @mitmArgs
+    # Use hashtable splatting — array splatting with named params is unreliable in PS 5.1
+    $mitmSplat = @{ ProxyHost = $ProxyHost; ProxyPort = $ProxyPort }
+    if ($DeviceId) { $mitmSplat["DeviceId"] = $DeviceId }
+    & $mitmScript @mitmSplat
 }
 
-$bundleArgs = @("-Profile", $Profile)
-if ($WorkspaceRoot) { $bundleArgs += @("-WorkspaceRoot", $WorkspaceRoot) }
-if ($SessionPath) { $bundleArgs += @("-SessionPath", $SessionPath) }
-$bundlePath = & $bundleScript @bundleArgs
+$bundleSplat = @{ Profile = $Profile }
+if ($WorkspaceRoot) { $bundleSplat["WorkspaceRoot"] = $WorkspaceRoot }
+if ($SessionPath) { $bundleSplat["SessionPath"] = $SessionPath }
+$bundlePath = & $bundleScript @bundleSplat
 
-$fridaArgs = @("-PackageName", $PackageName, "-HookScript", $bundlePath)
-if ($DeviceId) { $fridaArgs += @("-DeviceId", $DeviceId) }
+$fridaSplat = @{ PackageName = $PackageName; HookScript = $bundlePath }
+if ($DeviceId) { $fridaSplat["DeviceId"] = $DeviceId }
 if ($LaunchThenAttach) {
     if ($DelaySeconds -lt 0) {
         throw "DelaySeconds must be >= 0."
@@ -188,9 +189,9 @@ if ($LaunchThenAttach) {
         Write-Host "[*] Waiting $DelaySeconds second(s) before attach"
         Start-Sleep -Seconds $DelaySeconds
     }
-    $fridaArgs += "-AttachOnly"
+    $fridaSplat["AttachOnly"] = $true
 } elseif ($AttachOnly) {
-    $fridaArgs += "-AttachOnly"
+    $fridaSplat["AttachOnly"] = $true
 }
 
-& $fridaScript @fridaArgs
+& $fridaScript @fridaSplat

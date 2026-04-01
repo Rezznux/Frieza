@@ -34,17 +34,17 @@ function Start-PackageNormally {
     & adb @args | Out-Null
 }
 
-$generateArgs = @("-ReportPath", $ReportPath, "-OutputScriptPath", $hookOutput)
-& (Join-Path $PSScriptRoot "generate_native_hook_plan.ps1") @generateArgs | Out-Host
+$generateSplat = @{ ReportPath = $ReportPath; OutputScriptPath = $hookOutput }
+& (Join-Path $PSScriptRoot "generate_native_hook_plan.ps1") @generateSplat | Out-Host
 
-$fridaArgs = @("-PackageName", $PackageName, "-HookScript", $hookOutput)
-if ($DeviceId) { $fridaArgs += @("-DeviceId", $DeviceId) }
+$fridaSplat = @{ PackageName = $PackageName; HookScript = $hookOutput }
+if ($DeviceId) { $fridaSplat["DeviceId"] = $DeviceId }
 if ($LaunchThenAttach) {
     Start-PackageNormally -ResolvedDeviceId $DeviceId -ResolvedPackageName $PackageName
     if ($DelaySeconds -gt 0) {
         Start-Sleep -Seconds $DelaySeconds
     }
-    $fridaArgs += "-AttachOnly"
+    $fridaSplat["AttachOnly"] = $true
 }
 
-& (Join-Path $PSScriptRoot "start_frida_capture.ps1") @fridaArgs
+& (Join-Path $PSScriptRoot "start_frida_capture.ps1") @fridaSplat
